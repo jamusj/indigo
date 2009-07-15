@@ -33,10 +33,64 @@ import java.util.Vector;
 import java.io.*;
 import com.dalsemi.onewire.utils.CRC16;
 import java.util.*;
+import org.json.*;
 
 
 public class ReadTemp
 {
+   static HashMap variableNames;
+
+   static String doApplescript(String script)
+   {
+        String line;
+        try {
+                Process p=Runtime.getRuntime().exec("/usr/bin/osascript -s o -");
+                OutputStream stdin=p.getOutputStream();
+                stdin.write(script.getBytes());
+                stdin.flush();
+                stdin.close();
+              BufferedReader input =
+        new BufferedReader
+          (new InputStreamReader(p.getInputStream()));
+line=input.readLine();
+      input.close();
+
+                if (p.waitFor() != 0) {
+                    System.err.println("exit value = " +
+                        p.exitValue());
+                    System.err.println(line);
+                }
+		return line;
+            }
+            catch (Exception e) {
+                System.err.println(e);
+            }
+
+       return "";
+   }
+
+   static void populateVariableNames()
+   {
+	String json=doApplescript("tell application \"IndigoServer\" to return value of variable \"ow_config\"");
+ 	try {
+                JSONObject j=new JSONObject(json);
+                java.util.Iterator i=j.keys();
+                while (i.hasNext() ) {
+                        String key=(String)i.next();
+                        variableNames.put(key,j.getString(key));
+                }
+                System.out.println(variableNames.toString());
+	} catch (Exception e) {
+		System.err.println(e);
+	}
+   }
+
+   static void setVariable(String id, String value)
+   {
+       String variable=(String)variableNames.get(id); 
+       doApplescript("tell application \"IndigoServer\" to set value of variable \""+variable+"\" to \""+value+"\"");
+   }
+
    static int parseInt (BufferedReader in, int def)
    {
       try
@@ -86,6 +140,8 @@ public class ReadTemp
       DSPortAdapter access       = null;
       String        adapter_name = null;
       String        port_name    = null;
+
+      variableNames=new HashMap();
 
       if ((args == null) || (args.length < 1))
       {
@@ -158,6 +214,9 @@ public class ReadTemp
          }
       }
 
+      populateVariableNames();
+      while(true)
+      {
       access.adapterDetected();
       access.targetAllFamilies();
       access.beginExclusive(true);
@@ -325,8 +384,11 @@ public class ReadTemp
             }
 
             double temp = tc.getTemperature(state);
+            double temp_f = (9.0/5.0)*temp+32;
+            setVariable(owc.getAddressAsString(),Double.toString(temp_f));
 
             System.out.println("= Reported temperature: " + temp);
+
          }
          else
          {
@@ -334,8 +396,11 @@ public class ReadTemp
             System.out.println("=");
             System.out.println("=");
          }
-
          next = access.findNextDevice();
       }
+      try {
+        Thread.sleep(60*5*1000);
+      } catch (Exception e) {}
+   }
    }
 }
