@@ -338,8 +338,8 @@ line=input.readLine();
                try
                {
                   System.out.println("= Setting temperature resolution to "
-                                     + resolution [0] + "...");
-                  tc.setTemperatureResolution(resolution [0], state);
+                                     + 0.0625 + "...");
+                  tc.setTemperatureResolution(0.0625, state);
                }
                catch (Exception e)
                {
@@ -384,9 +384,10 @@ line=input.readLine();
             }
 
             double temp = tc.getTemperature(state);
+		if (temp<84) {
             double temp_f = (9.0/5.0)*temp+32;
             setVariable(owc.getAddressAsString(),Double.toString(temp_f));
-
+	    }
             System.out.println("= Reported temperature: " + temp);
 
          }
